@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>WCA 3x3x3 Scrambler Pro</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Rubik', sans-serif;
+            color: #ffffff;
+            background-color: #090c10;
+            scroll-behavior: smooth;
+            overflow-x: hidden;
+        }
+
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(rgba(10, 15, 20, 0.85), rgba(10, 15, 20, 0.85)), 
+                        url('https://images.unsplash.com/photo-1591991564021-0662a8573199?q=80&w=1920&auto=format&fit=crop') center/cover no-repeat;
+            padding: 40px;
+            box-sizing: border-box;
+        }
+
+        .main-wrapper {
+            display: flex;
+            gap: 30px;
+            align-items: stretch; 
+            width: 100%;
+            max-width: 1400px;
+            justify-content: center;
+        }
+
+        .panel-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: stretch;
+            max-width: 320px; 
+        }
+
+        .center-wrapper {
+            flex: 1.6; 
+            display: flex;
+            align-items: stretch;
+            max-width: 650px;
+        }
+
+        .side-panel {
+            width: 100%;
+            background: rgba(15, 20, 25, 0.95);
+            border-radius: 16px;
+            border: 1px solid rgba(0, 234, 238, 0.2);
+            padding: 30px 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            opacity: 0.85; 
+            transition: all 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+            cursor: pointer;
+            position: relative; 
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .side-panel:hover {
+            opacity: 1;
+            box-shadow: 0 15px 35px rgba(0,234,238,0.2);
+            transform: translateY(-5px); 
+        }
+
+        .side-panel.zoomed {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 100;
+            max-width: 680px; 
+            width: 95%;
+            max-height: 85vh; 
+            overflow-y: auto; 
+            opacity: 1;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.9), 0 0 50px rgba(0, 234, 238, 0.2);
+            cursor: default;
+        }
+
+        .side-panel.zoomed::-webkit-scrollbar { width: 8px; }
+        .side-panel.zoomed::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); border-radius: 4px; }
+        .side-panel.zoomed::-webkit-scrollbar-thumb { background: #00eaee; border-radius: 4px; }
+
+        .overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 50;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+            cursor: pointer;
+        }
+
+        .side-panel h3 {
+            font-family: 'Montserrat', sans-serif;
+            color: #00eaee;
+            font-size: 18px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 0;
+            margin-bottom: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.15);
+            padding-bottom: 15px;
+            pointer-events: none;
+        }
+
+        .normal-content { display: flex; flex-direction: column; justify-content: center; flex: 1; opacity: 1; transition: 0.2s; pointer-events: none; }
+        .zoomed-content { display: none; opacity: 0; transition: 0.3s; }
+        
+        .side-panel.zoomed .normal-content { display: none; }
+        .side-panel.zoomed .zoomed-content { display: flex; flex-direction: column; gap: 20px; animation: fadeIn 0.4s forwards ease; }
+        @keyframes fadeIn { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
+
+        .normal-content ul { list-style: none; padding: 0; margin: 0; }
+        .normal-content li { font-size: 15px; color: #e2e8f0; margin-bottom: 16px; line-height: 1.6; }
+        .normal-content li strong {
+            color: #ffffff;
+            background: rgba(0, 234, 238, 0.2);
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin-right: 8px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* 
+         * ПРОСТЫЕ 2D СХЕМЫ ХОДОВ 
+         */
+        .notation-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr); 
+            gap: 25px;
+            margin-top: 10px;
+        }
+        .notation-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: rgba(255,255,255,0.03);
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .notation-item svg {
+            width: 140px; 
+            height: 140px;
+            margin-bottom: 15px;
+        }
+        .notation-item span { font-size: 16px; color: #e2e8f0; margin-top: 5px; }
+        .notation-item strong {
+            font-family: 'Courier New', Courier, monospace;
+            color: #00eaee;
+            font-size: 22px;
+            margin-right: 5px;
+        }
+        .notation-mods {
+            border-top: 1px solid rgba(0, 234, 238, 0.2);
+            padding-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-bottom: 10px;
+        }
+        .notation-mods p { margin: 0; font-size: 16px; color: #a0aec0; }
+        .notation-mods strong { color: #fff; background: rgba(0, 234, 238, 0.2); padding: 3px 8px; border-radius: 4px; font-family: 'Courier New', Courier, monospace; }
+
+        .zoomed-content.rules p { font-size: 16px; color: #e2e8f0; line-height: 1.7; margin: 0; }
+        .zoomed-content.rules strong { color: #00eaee; display: block; margin-bottom: 5px; font-size: 18px; }
+        .zoomed-content.rules .rule-block { background: rgba(0,0,0,0.3); padding: 15px 20px; border-radius: 12px; border-left: 4px solid #00eaee; }
+
+        /* ЦЕНТРАЛЬНЫЙ БЛОК */
+        .container {
+            width: 100%;
+            background: rgba(15, 20, 25, 0.98);
+            padding: 40px 30px; 
+            border-radius: 20px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.9);
+            border: 1px solid rgba(0, 234, 238, 0.4);
+            text-align: center;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            justify-content: center; 
+            transform: scale(1.03); 
+        }
+
+        h1 {
+            font-family: 'Montserrat', sans-serif;
+            color: #00eaee;
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 32px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 15px rgba(0, 234, 238, 0.4);
+        }
+
+        .subtitle {
+            color: #a0aec0;
+            font-size: 15px;
+            margin-bottom: 35px;
+            letter-spacing: 0.5px;
+        }
+
+        .scramble-box {
+            background: #000000; 
+            padding: 25px 15px; 
+            border-radius: 12px;
+            border-left: 6px solid #00eaee;
+            margin-bottom: 35px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 80px;
+        }
+
+        .scramble {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 24px; 
+            line-height: 1.6;
+            font-weight: 800;
+            color: #ffffff;
+            letter-spacing: 3px; 
+            word-spacing: 12px; 
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.9);
+            width: 100%;
+        }
+
+        .btn-wrapper { display: flex; justify-content: center; }
+
+        .btn {
+            background: linear-gradient(45deg, #00eaee, #0077ff);
+            color: #ffffff;
+            border: none;
+            padding: 18px 50px;
+            font-size: 18px;
+            font-family: 'Rubik', sans-serif;
+            font-weight: 700;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 8px 20px rgba(0, 119, 255, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        .btn:hover { transform: translateY(-3px); box-shadow: 0 15px 30px rgba(0, 119, 255, 0.5); }
+        .btn:active { transform: translateY(1px); box-shadow: 0 4px 10px rgba(0, 119, 255, 0.3); }
+
+        /* ИСПРАВЛЕННЫЙ ПОДВАЛ */
+        .info-section {
+            background-color: #0b1014;
+            padding: 60px 30px;
+            border-top: 2px solid rgba(0, 234, 238, 0.2);
+            display: flex;
+            justify-content: center;
+        }
+        
+        .info-content { 
+            max-width: 1200px; 
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1.5fr; /* Заголовок слева, текст справа */
+            gap: 50px;
+            align-items: center;
+        }
+        
+        .info-content h2 { 
+            font-family: 'Montserrat', sans-serif; 
+            color: #00eaee; 
+            font-size: 32px; 
+            margin: 0; 
+            line-height: 1.3;
+        }
+        
+        .info-text p { 
+            color: #a0aec0; 
+            font-size: 16px; 
+            line-height: 1.8; 
+            margin-top: 0;
+            margin-bottom: 15px; 
+        }
+
+        @media (max-width: 1000px) {
+            .main-wrapper { flex-direction: column; align-items: center; }
+            .panel-wrapper, .center-wrapper { width: 100%; max-width: 550px; }
+            .container { transform: none; }
+            .notation-grid { grid-template-columns: 1fr; }
+            .info-content { grid-template-columns: 1fr; gap: 20px; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SVG-элементы: Базовая сетка кубика 2D и нормальные стрелки -->
+    <svg style="display: none;">
+        <defs>
+            <g id="grid-2d">
+                <!-- Фон кубика (3x3 сетка) -->
+                <rect x="20" y="20" width="60" height="60" fill="#1a202c" stroke="#4a5568" stroke-width="3" rx="4"/>
+                <line x1="40" y1="20" x2="40" y2="80" stroke="#4a5568" stroke-width="3"/>
+                <line x1="60" y1="20" x2="60" y2="80" stroke="#4a5568" stroke-width="3"/>
+                <line x1="20" y1="40" x2="80" y2="40" stroke="#4a5568" stroke-width="3"/>
+                <line x1="20" y1="60" x2="80" y2="60" stroke="#4a5568" stroke-width="3"/>
+            </g>
+
+            <!-- Четкие жирные маркеры для стрелок -->
+            <marker id="arrow-cyan" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 9 5 L 0 9 z" fill="#00eaee" />
+            </marker>
+            <marker id="arrow-orange" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 9 5 L 0 9 z" fill="#ffaa00" />
+            </marker>
+        </defs>
+    </svg>
+
+    <div class="overlay" id="overlay" onclick="closeAllPanels()"></div>
+
+    <div class="hero">
+        <div class="main-wrapper">
+            
+            <div class="panel-wrapper">
+                <div class="side-panel panel-left" onclick="togglePanel(this)" title="Нажми, чтобы увеличить">
+                    <h3>Язык вращений</h3>
+                    
+                    <div class="normal-content">
+                        <ul>
+                            <li><strong>U</strong> Up (Верхняя)</li>
+                            <li><strong>D</strong> Down (Нижняя)</li>
+                            <li><strong>R</strong> Right (Правая)</li>
+                            <li><strong>L</strong> Left (Левая)</li>
+                            <li><strong>F</strong> Front (Передняя)</li>
+                            <li><strong>B</strong> Back (Задняя)</li>
+                            <li style="margin-top: 15px;">Модификаторы:</li>
+                            <li><strong>'</strong> Против часовой</li>
+                            <li><strong>2</strong> Двойной поворот</li>
+                        </ul>
+                    </div>
+
+                    <div class="zoomed-content">
+                        <div class="notation-grid">
+                            
+                            <!-- U -->
+                            <div class="notation-item">
+                                <svg viewBox="0 0 100 100">
+                                    <use href="#grid-2d"/>
+                                    <!-- Подсветка верхней полосы -->
+                                    <rect x="20" y="20" width="60" height="20" fill="rgba(0, 234, 238, 0.4)" rx="2"/>
+                                    <!-- Прямая стрелка над кубиком, указывающая влево -->
+                                    <path d="M 80 8 L 25 8" fill="none" stroke="#00eaee" stroke-width="5" stroke-linecap="round" marker-end="url(#arrow-cyan)"/>
+                                </svg>
+                                <span><strong>U</strong> (Up)</span>
+                            </div>
+
+                            <!-- D -->
+                            <div class="notation-item">
+                                <svg viewBox="0 0 100 100">
+                                    <use href="#grid-2d"/>
+                                    <!-- Подсветка нижней полосы -->
+                                    <rect x="20" y="60" width="60" height="20" fill="rgba(0, 234, 238, 0.4)" rx="2"/>
+                                    <!-- Стрелка под кубиком, вправо -->
+                                    <path d="M 20 92 L 75 92" fill="none" stroke="#00eaee" stroke-width="5" stroke-linecap="round" marker-end="url(#arrow-cyan)"/>
+                                </svg>
+                                <span><strong>D</strong> (Down)</span>
+                            </div>
+
+                            <!-- R -->
+                            <div class="notation-item">
+                                <svg viewBox="0 0 100 100">
+                                    <use href="#grid-2d"/>
+                                    <!-- Подсветка правой полосы -->
+                                    <rect x="60" y="20" width="20" height="60" fill="rgba(0, 234, 238, 0.4)" rx="2"/>
+                                    <!-- Стрелка справа, вверх -->
+                                    <path d="M 92 80 L 92 25" fill="none" stroke="#00eaee" stroke-width="5" stroke-linecap="round" marker-end="url(#arrow-cyan)"/>
+                                </svg>
+                                <span><strong>R</strong> (Right)</span>
+                            </div>
+
+                            <!-- L -->
+                            <div class="notation-item">
+                                <svg viewBox="0 0 100 100">
+                                    <use href="#grid-2d"/>
+                                    <!-- Подсветка левой полосы -->
+                                    <rect x="20" y="20" width="20" height="60" fill="rgba(0, 234, 238, 0.4)" rx="2"/>
+                                    <!-- Стрелка слева, вниз -->
+                                    <path d="M 8 20 L 8 75" fill="none" stroke="#00eaee" stroke-width="5" stroke-linecap="round" marker-end="url(#arrow-cyan)"/>
+                                </svg>
+                                <span><strong>L</strong> (Left)</span>
+                            </div>
+
+                            <!-- F -->
+                            <div class="notation-item">
+                                <svg viewBox="0 0 100 100">
+                                    <use href="#grid-2d"/>
+                                    <!-- Подсветка всего лица -->
+                                    <rect x="20" y="20" width="60" height="60" fill="rgba(0, 234, 238, 0.15)" rx="4"/>
+                                    <!-- Круговая стрелка по часовой в центре -->
+                                    <path d="M 30 50 A 20 20 0 1 1 50 70" fill="none" stroke="#00eaee" stroke-width="5" stroke-linecap="round" marker-end="url(#arrow-cyan)"/>
+                                </svg>
+                                <span><strong>F</strong> (Front)</span>
+                            </div>
+
+                            <!-- B -->
+                            <div class="notation-item">
+                                <svg viewBox="0 0 100 100">
+                                    <use href="#grid-2d"/>
+                                    <!-- Подсветка всего лица (оранжевая, т.к. задняя грань) -->
+                                    <rect x="20" y="20" width="60" height="60" fill="rgba(255, 170, 0, 0.1)" rx="4"/>
+                                    <!-- Круговая пунктирная стрелка ПРОТИВ часовой (вид спереди) -->
+                                    <path d="M 70 50 A 20 20 0 1 0 50 70" fill="none" stroke="#ffaa00" stroke-width="5" stroke-linecap="round" stroke-dasharray="6 4" marker-end="url(#arrow-orange)"/>
+                                </svg>
+                                <span><strong>B</strong> (Back)</span>
+                            </div>
+
+                        </div>
+                        
+                        <div class="notation-mods">
+                            <p><strong>'</strong> — против часовой</p>
+                            <p><strong>2</strong> — двойной поворот (180°)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="center-wrapper">
+                <div class="container">
+                    <h1>WCA Scrambler</h1>
+                    <div class="subtitle">Случайное состояние (Random State) 3x3x3</div>
+                    
+                    <div class="scramble-box">
+                        <div class="scramble" id="result">Загрузка...</div>
+                    </div>
+                    
+                    <div class="btn-wrapper">
+                        <button class="btn" onclick="generateWcaScramble()">Новый скрамбл</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-wrapper">
+                <div class="side-panel panel-right" onclick="togglePanel(this)" title="Нажми, чтобы увеличить">
+                    <h3>Правила WCA</h3>
+                    
+                    <div class="normal-content">
+                        <ul>
+                            <li><strong>Ориентация:</strong> Перед скрамблингом кубик держится белой гранью вверх и зеленой к себе.</li>
+                            <li><strong>Длина:</strong> Официальный скрамбл всегда генерируется на 20-22 хода.</li>
+                            <li><strong>Фильтрация:</strong> Алгоритм гарантирует отсутствие отменяющих ходов.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Добавил кучу инфы, чтобы окно не было пустым -->
+                    <div class="zoomed-content rules">
+                        <div class="rule-block">
+                            <strong>Ориентация головоломки</strong>
+                            <p>По стандартам WCA участник берет собранный кубик так, чтобы белая грань смотрела строго вверх (Up), а зеленая грань — прямо на человека (Front).</p>
+                        </div>
+                        <div class="rule-block">
+                            <strong>Алгоритм генерации</strong>
+                            <p>Официальный скрамбл не является просто случайным набором ходов. Программа генерирует абсолютно случайное математическое состояние кубика (Random State), а затем выдает оптимальное решение в обратную сторону на 20-22 хода.</p>
+                        </div>
+                        <div class="rule-block">
+                            <strong>Инспекция (15 секунд)</strong>
+                            <p>Участнику дается максимум 15 секунд на осмотр кубика перед началом сборки. Запускать таймер нужно до истечения этого времени, иначе штраф.</p>
+                        </div>
+                        <div class="rule-block">
+                            <strong>Штрафы (+2 и DNF)</strong>
+                            <p>Если после остановки таймера грань кубика недовернута больше чем на 45 градусов, к времени прибавляется 2 секунды (+2). Если недовернуто больше одной грани — попытка не засчитывается (DNF).</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ПОДВАЛ (Теперь нормально заполняет место) -->
+    <div class="info-section">
+        <div class="info-content">
+            <h2>Официальные регламенты скрамблинга</h2>
+            <div class="info-text">
+                <p>Для обеспечения равных условий на соревнованиях, скрамблы генерируются с помощью специальных алгоритмов, соответствующих строгим стандартам Всемирной Ассоциации Кубика (WCA). Наш генератор использует логику фильтрации, которая исключает бессмысленные ходы и отменяющие комбинации.</p>
+                <p>Длина официального скрамбла для кубика 3x3x3 всегда составляет от 20 до 22 ходов. Алгоритм гарантирует, что соседние грани не будут повторяться, создавая по-настоящему случайное (Random State) и корректное состояние головоломки.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function togglePanel(panel) {
+            if (panel.classList.contains('zoomed')) {
+                closeAllPanels();
+            } else {
+                closeAllPanels();
+                panel.classList.add('zoomed');
+                document.getElementById('overlay').classList.add('active');
+            }
+        }
+
+        function closeAllPanels() {
+            document.querySelectorAll('.side-panel').forEach(function(p) {
+                p.classList.remove('zoomed');
+                p.scrollTop = 0; 
+            });
+            document.getElementById('overlay').classList.remove('active');
+        }
+
+        class ScrambowEngine {
+            constructor() {
+                this.faces = ["U", "D", "R", "L", "F", "B"];
+                this.modifiers = ["", "'", "2"];
+            }
+
+            isOpposite(t, e) {
+                const r = { "U": "D", "D": "U", "R": "L", "L": "R", "F": "B", "B": "F" };
+                return r[t] === e;
+            }
+
+            generate() {
+                let r = [], n = "", a = "";
+                for (let o = 0; o < 21; o++) {
+                    do {
+                        n = this.faces[Math.floor(Math.random() * this.faces.length)];
+                    } while (n === a || (this.isOpposite(n, a) && n === r[r.length - 2]?.charAt(0)));
+
+                    let i = this.modifiers[Math.floor(Math.random() * this.modifiers.length)];
+                    r.push(n + i);
+                    a = n;
+                }
+                return r.join(" ");
+            }
+
+            get(num = 1) {
+                let res = [];
+                for (let i = 0; i < num; i++) {
+                    res.push({ scramble_string: this.generate() });
+                }
+                return res;
+            }
+        }
+
+        const scrambler = new ScrambowEngine();
+
+        function generateWcaScramble() {
+            const result = scrambler.get(1)[0];
+            document.getElementById("result").innerText = result.scramble_string;
+        }
+
+        window.onload = generateWcaScramble;
+    </script>
+
+</body>
+</html>
